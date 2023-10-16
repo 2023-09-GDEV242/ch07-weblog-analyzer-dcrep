@@ -1,13 +1,15 @@
 /**
  * Read web server data and analyse hourly access patterns.
  * 
- * @author David J. Barnes and Michael Kölling.
- * @version    2016.02.29
+ * @author Daniel Corritore, modified from existing code from:
+ *         David J. Barnes and Michael Kölling.
+ * @version    2023.10.15
  */
 public class LogAnalyzer
 {
     // Where to calculate the hourly access counts.
     private int[] hourCounts;
+    private int[] monthCounts;
     // Use a LogfileReader to access the data.
     private LogfileReader reader;
 
@@ -16,11 +18,7 @@ public class LogAnalyzer
      */
     public LogAnalyzer()
     { 
-        // Create the array object to hold the hourly
-        // access counts.
-        hourCounts = new int[24];
-        // Create the reader to obtain the data.
-        reader = new LogfileReader("demo.log");
+        this("demo.log");
     }
     /**
      * Create an object to analyze hourly web accesses
@@ -30,6 +28,8 @@ public class LogAnalyzer
     {
         // array of hourly access counts
         hourCounts = new int[24];
+        // months as well
+        monthCounts = new int[12];
         // Create the reader to obtain the data.
         reader = new LogfileReader(logfileName);
     }
@@ -39,12 +39,28 @@ public class LogAnalyzer
      */
     public void analyzeHourlyData()
     {
+        // In case a previous analysis was run, reset to start
+        reader.reset();
         while(reader.hasNext()) {
             LogEntry entry = reader.next();
             int hour = entry.getHour();
             hourCounts[hour]++;
         }
     }
+    
+    /**
+     * Analyze the monthly access data from the log file.
+     */
+    public void analyzeMonthlyData()
+    {
+        // In case a previous analysis was run, reset to start
+        reader.reset();
+        while(reader.hasNext()) {
+            // -1 is important, converting 1-12 to 0-11
+            monthCounts[reader.next().getMonth() - 1]++;
+        }
+    }
+
     /**
     * Return the number of accesses recorded in the log file.
      */
@@ -57,6 +73,7 @@ public class LogAnalyzer
         }
         return total;
     }
+    
     /**
      * Return the busiest hour according to the log file
      */
@@ -126,6 +143,62 @@ public class LogAnalyzer
     }
     
     /**
+     * Return the busiest month according to the log file
+     */
+    public int busiestMonth()
+    {
+        int busiestMonth = 0;
+        int busiestMonthAccesses = 0;
+        for (int i=0; i < monthCounts.length; i++) {
+            int accesses = monthCounts[i];
+            // This month's accesses > previously recorded month?
+            if (accesses > busiestMonthAccesses) {
+                // adjust values to reflect this month and it's accesses
+                busiestMonth = i;
+                busiestMonthAccesses = accesses;
+            }            
+        }
+        // 0 to 1 base
+        return (busiestMonth + 1);
+    }
+    /**
+     * Return the quietest month according to the log file.
+     */
+    public int quietestMonth()
+    {
+        // Invalid month if there's something missing
+        int quietestMonth = -1;
+        // Start with the largest possible value
+        int quietestMonthAccesses = Integer.MAX_VALUE;
+        for (int i=0; i < monthCounts.length; i++) {
+            int accesses = monthCounts[i];
+            // This month's accesses not 0 AND < previously recorded month?
+            if (accesses != 0 && accesses < quietestMonthAccesses) {
+                // adjust values to reflect this month and it's accesses
+                quietestMonth = i;
+                quietestMonthAccesses = accesses;
+            }
+        }
+        // 0 to 1 base
+        return (quietestMonth + 1);
+    }
+    /**
+    * Return an average of accesses per month as recorded in the log file.
+     */
+    public int averageAccessesPerMonth()
+    {
+        int total = 0;
+        // Add the value in each element of monthCounts to total.        
+        for (int i=0; i < monthCounts.length; i++) {
+            // Debug
+            //System.out.println("Month " + (i+1) + " hours:" + monthCounts[i]);
+            total += monthCounts[i];
+        }
+        // This is actually a constant given numberOfAccesses()/12
+        return (total / monthCounts.length);
+    }
+
+    /**
      * Print the hourly counts.
      * These should have been set with a prior
      * call to analyzeHourlyData.
@@ -138,6 +211,19 @@ public class LogAnalyzer
         }
     }
     
+    /**
+     * Print the monthly counts.
+     * These should have been set with a prior
+     * call to analyzeMonthlyData.
+     */
+    public void printMonthlyCounts()
+    {
+        System.out.println("Month: Count");
+        for(int month = 0; month < monthCounts.length; month++) {
+            System.out.println("" + (month + 1) + ": " + monthCounts[month]);
+        }
+    }
+
     /**
      * Print the lines of data read by the LogfileReader
      */
